@@ -94,6 +94,8 @@ cdef class Medium:
 					   'pi00': pi00, 'pi01': pi01, 'pi02': pi02, 'pi03': pi03, 
 					   'pi11': pi11, 'pi12': pi12, 'pi13': pi13, 'pi22': pi22, 						   'pi23': pi23, 'pi33': pi33}
 	
+	cpdef get_current_frame(self, key):
+		return self._tabs0[key]
 	
 	cpdef interpF(self, t, xvec, keys):
 		if xvec[0] < self._xmin or xvec[0] > self._xmax \
