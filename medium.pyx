@@ -53,7 +53,10 @@ cdef class Medium:
 			self.interpcube[i] = <double **> malloc(2*sizeof(double*))
 			for j in range(2):
 				self.interpcube[i][j] = <double *> malloc(2*sizeof(double))
-
+	cpdef init_tau(self):
+		return self._f['Event'].attrs['Tau0']
+	cpdef dtau(self):
+		return self._f['Event'].attrs['dTau']
 	cpdef unpack_frame(self, index):
 		key = self._keys[index]
 		T  = self._f['Event'][key]['Temp'].value
@@ -92,7 +95,7 @@ cdef class Medium:
 					   'pi11': pi11, 'pi12': pi12, 'pi13': pi13, 'pi22': pi22, 						   'pi23': pi23, 'pi33': pi33}
 	
 	
-	cpdef double interpF(self, t, xvec, key):
+	cpdef interpF(self, t, xvec, keys):
 		if xvec[0] < self._xmin or xvec[0] > self._xmax \
 			or xvec[1] < self._ymin or xvec[1] > self._ymax:
 			return 0
@@ -104,12 +107,14 @@ cdef class Medium:
 		cdef int iy = <int>floor(ny)
 		cdef ry = ny - iy
 		cdef int i, j
-		for i in range(2):
-			for j in range(2):
-				self.interpcube[0][i][j] = self._tabs0[key][ix+i, iy+i]
-				self.interpcube[1][i][j] = self._tabs1[key][ix+i, iy+i]
-
-		return finterp(self.interpcube, rt, rx, ry)
+		result = []
+		for key in keys:
+			for i in range(2):
+				for j in range(2):
+					self.interpcube[0][i][j] = self._tabs0[key][ix+i, iy+i]
+					self.interpcube[1][i][j] = self._tabs1[key][ix+i, iy+i]
+			result.append(finterp(self.interpcube, rt, rx, ry))
+		return result
 		
 
 
