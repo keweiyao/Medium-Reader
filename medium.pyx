@@ -109,7 +109,7 @@ cdef class Medium:
 		cdef int iy = <int>floor(ny)
 		cdef ry = ny - iy
 		cdef int i, j
-		result = []
+		result = [] 
 		for key in keys:
 			for i in range(2):
 				for j in range(2):
