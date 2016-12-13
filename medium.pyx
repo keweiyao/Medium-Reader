@@ -39,7 +39,7 @@ cdef class Medium:
 			self._dx = 0.
 			self._dy = 0.
 			self._tstart = 0.
-			self._dt = 0.
+			self._dt = .1
 			self._xmin = 0.
 			self._xmax = 0.
 			self._ymin = 0.
