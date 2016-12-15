@@ -38,7 +38,7 @@ cdef class Medium:
 			self._Ny = 0
 			self._dx = 0.
 			self._dy = 0.
-			self._tstart = 0.
+			self._tstart = 0.6
 			self._dt = .1
 			self._xmin = 0.
 			self._xmax = 0.
@@ -113,7 +113,6 @@ cdef class Medium:
 			else:
 				self._tabs0 = self._tabs1
 			self._step_key_index += 1
-			self._tnow += self._dt
 			T, Vx, Vy, e, p, pi00, pi01, pi02, pi03, pi11, pi12, pi13, pi22, pi23, pi33 \
 												 = self.unpack_frame(self._step_key_index)
 			self._tabs1 = {'Temp': T, 'Vx': Vx, 'Vy': Vy, 'e': e, 'p': p, 
@@ -125,6 +124,7 @@ cdef class Medium:
 			if StaticPropertyDictionary == None:
 				raise ValueError("Need to provide a static property at this step")
 			self._tabs0 = StaticPropertyDictionary
+		self._tnow += self._dt
 		return status
 	
 	cpdef get_current_frame(self, key):
