@@ -3,7 +3,7 @@ from libc.math cimport *
 from libc.stdio cimport *
 from libc.stdlib cimport malloc, free
 import numpy as np
-cimport numpy as np
+#cimport numpy as np
 import h5py
 from cpython cimport array
 import array
@@ -38,8 +38,8 @@ cdef class Medium:
 			self._Ny = 0
 			self._dx = 0.
 			self._dy = 0.
-			self._tstart = 0.6
-			self._dt = .1
+			self._tstart = 0.0
+			self._dt = 0.5
 			self._xmin = 0.
 			self._xmax = 0.
 			self._ymin = 0.
