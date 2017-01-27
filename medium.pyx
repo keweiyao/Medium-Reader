@@ -29,7 +29,7 @@ cdef class Medium:
 	cdef double T_static
 	cdef double *** interpcube
 	
-	def __cinit__(self, mode='dynamic', hydrofilename=None):
+	def __cinit__(self, mode='dynamic', hydrofilename=None, static_dt=0.5):
 		self._mode = mode
 		if self._mode == 'static':
 			print "works in static meidum mode!"
@@ -39,7 +39,7 @@ cdef class Medium:
 			self._dx = 0.
 			self._dy = 0.
 			self._tstart = 0.0
-			self._dt = 0.5
+			self._dt = static_dt
 			self._xmin = 0.
 			self._xmax = 0.
 			self._ymin = 0.
