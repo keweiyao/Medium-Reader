@@ -6,5 +6,5 @@ setup(
     ext_modules = cythonize([
     Extension("medium", ["medium.pyx"],
               libraries=["m"])
-    ])
+    ]),
 )

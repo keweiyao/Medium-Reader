@@ -1,9 +1,9 @@
+# cython: c_string_type=str, c_string_encoding=ascii
 from medium cimport *
 from libc.math cimport *
 from libc.stdio cimport *
 from libc.stdlib cimport malloc, free
 import numpy as np
-#cimport numpy as np
 import h5py
 from cpython cimport array
 import array
@@ -29,8 +29,9 @@ cdef class Medium:
 	cdef double T_static
 	cdef double *** interpcube
 	
-	def __cinit__(self, mode='dynamic', hydrofilename=None, static_dt=0.5):
-		self._mode = mode
+	def __cinit__(self, medium_flags):
+		self._mode = medium_flags['type']
+		
 		if self._mode == 'static':
 			print "works in static meidum mode!"
 			print "Medium property can be specified step by step"
@@ -39,13 +40,14 @@ cdef class Medium:
 			self._dx = 0.
 			self._dy = 0.
 			self._tstart = 0.0
-			self._dt = static_dt
+			self._dt = medium_flags['static_dt']
 			self._xmin = 0.
 			self._xmax = 0.
 			self._ymin = 0.
 			self._ymax = 0.
 			self._tnow = self._tstart - self._dt
 		elif self._mode == 'dynamic':
+			hydrofilename = medium_flags['hydrofile']
 			if hydrofilename == None:
 				raise ValueError("Please provide the hydro histroy file in dynamic meidum model.")
 			try:
@@ -117,7 +119,7 @@ cdef class Medium:
 												 = self.unpack_frame(self._step_key_index)
 			self._tabs1 = {'Temp': T, 'Vx': Vx, 'Vy': Vy, 'e': e, 'p': p, 
 						   'pi00': pi00, 'pi01': pi01, 'pi02': pi02, 'pi03': pi03, 
-						   'pi11': pi11, 'pi12': pi12, 'pi13': pi13, 'pi22': pi22, 							   'pi23': pi23, 'pi33': pi33}
+						   'pi11': pi11, 'pi12': pi12, 'pi13': pi13, 'pi22': pi22,								'pi23': pi23, 'pi33': pi33}
 			if self._step_key_index == len(self._step_keys) - 1:
 				status = False
 		if self._mode == 'static':
