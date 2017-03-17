@@ -3,7 +3,6 @@ from medium cimport *
 from libc.math cimport *
 from libc.stdio cimport *
 from libc.stdlib cimport malloc, free
-import numpy as np
 import h5py
 from cpython cimport array
 import array
