@@ -53,7 +53,7 @@ cdef class Medium:
 				self._f = h5py.File(hydrofilename, 'r')
 			except IOError:
 				print "Open hydrofile %s failed."%hydrofilename
-			self._step_keys = self._f['Event'].keys()
+			self._step_keys = list(self._f['Event'].keys())
 			self._step_key_index = 0
 			self._Nx = self._f['Event'].attrs['XH'] - self._f['Event'].attrs['XL'] + 1
 			self._Ny = self._f['Event'].attrs['YH'] - self._f['Event'].attrs['YL'] + 1
