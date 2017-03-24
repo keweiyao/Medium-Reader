@@ -84,21 +84,22 @@ cdef class Medium:
 	
 	cpdef unpack_frame(self, step_index, staticT = None):
 		key = self._step_keys[step_index]
-		T  = self._f['Event'][key]['Temp'].value
-		Vx = self._f['Event'][key]['Vx'].value
-		Vy = self._f['Event'][key]['Vy'].value
-		e = self._f['Event'][key]['e'].value
-		p = self._f['Event'][key]['P'].value
-		pi00 = self._f['Event'][key]['Pi00'].value
-		pi01 = self._f['Event'][key]['Pi01'].value
-		pi02 = self._f['Event'][key]['Pi02'].value
-		pi03 = self._f['Event'][key]['Pi03'].value
-		pi11 = self._f['Event'][key]['Pi11'].value
-		pi12 = self._f['Event'][key]['Pi12'].value
-		pi13 = self._f['Event'][key]['Pi13'].value
-		pi22 = self._f['Event'][key]['Pi22'].value
-		pi23 = self._f['Event'][key]['Pi23'].value
-		pi33 = self._f['Event'][key]['Pi33'].value
+		# Note the transpose of vishnew information!!!
+		T  = self._f['Event'][key]['Temp'].value.T
+		Vx = self._f['Event'][key]['Vx'].value.T
+		Vy = self._f['Event'][key]['Vy'].value.T
+		e = self._f['Event'][key]['e'].value.T
+		p = self._f['Event'][key]['P'].value.T
+		pi00 = self._f['Event'][key]['Pi00'].value.T
+		pi01 = self._f['Event'][key]['Pi01'].value.T
+		pi02 = self._f['Event'][key]['Pi02'].value.T
+		pi03 = self._f['Event'][key]['Pi03'].value.T
+		pi11 = self._f['Event'][key]['Pi11'].value.T
+		pi12 = self._f['Event'][key]['Pi12'].value.T
+		pi13 = self._f['Event'][key]['Pi13'].value.T
+		pi22 = self._f['Event'][key]['Pi22'].value.T
+		pi23 = self._f['Event'][key]['Pi23'].value.T
+		pi33 = self._f['Event'][key]['Pi33'].value.T
 		return T, Vx, Vy, e, p, pi00, pi01, pi02, pi03, pi11, pi12, pi13, pi22, pi23, pi33
 			
 	cpdef load_next(self, StaticPropertyDictionary=None):
