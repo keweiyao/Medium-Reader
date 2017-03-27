@@ -1,10 +1,10 @@
 # cython: c_string_type=str, c_string_encoding=ascii
-from medium cimport *
 from libc.math cimport *
 from libc.stdio cimport *
 from libc.stdlib cimport malloc, free
 import h5py
 from cpython cimport array
+from libcpp.vector cimport vector
 import array
 
 cdef inline finterp(double *** c, double rx, double ry, double rz):
@@ -84,22 +84,21 @@ cdef class Medium:
 	
 	cpdef unpack_frame(self, step_index, staticT = None):
 		key = self._step_keys[step_index]
-		# Note the transpose of vishnew information!!!
-		T  = self._f['Event'][key]['Temp'].value.T
-		Vx = self._f['Event'][key]['Vx'].value.T
-		Vy = self._f['Event'][key]['Vy'].value.T
-		e = self._f['Event'][key]['e'].value.T
-		p = self._f['Event'][key]['P'].value.T
-		pi00 = self._f['Event'][key]['Pi00'].value.T
-		pi01 = self._f['Event'][key]['Pi01'].value.T
-		pi02 = self._f['Event'][key]['Pi02'].value.T
-		pi03 = self._f['Event'][key]['Pi03'].value.T
-		pi11 = self._f['Event'][key]['Pi11'].value.T
-		pi12 = self._f['Event'][key]['Pi12'].value.T
-		pi13 = self._f['Event'][key]['Pi13'].value.T
-		pi22 = self._f['Event'][key]['Pi22'].value.T
-		pi23 = self._f['Event'][key]['Pi23'].value.T
-		pi33 = self._f['Event'][key]['Pi33'].value.T
+		T  = self._f['Event'][key]['Temp'].value
+		Vx = self._f['Event'][key]['Vx'].value
+		Vy = self._f['Event'][key]['Vy'].value
+		e = self._f['Event'][key]['e'].value
+		p = self._f['Event'][key]['P'].value
+		pi00 = self._f['Event'][key]['Pi00'].value
+		pi01 = self._f['Event'][key]['Pi01'].value
+		pi02 = self._f['Event'][key]['Pi02'].value
+		pi03 = self._f['Event'][key]['Pi03'].value
+		pi11 = self._f['Event'][key]['Pi11'].value
+		pi12 = self._f['Event'][key]['Pi12'].value
+		pi13 = self._f['Event'][key]['Pi13'].value
+		pi22 = self._f['Event'][key]['Pi22'].value
+		pi23 = self._f['Event'][key]['Pi23'].value
+		pi33 = self._f['Event'][key]['Pi33'].value
 		return T, Vx, Vy, e, p, pi00, pi01, pi02, pi03, pi11, pi12, pi13, pi22, pi23, pi33
 			
 	cpdef load_next(self, StaticPropertyDictionary=None):
@@ -132,36 +131,40 @@ cdef class Medium:
 	cpdef get_current_frame(self, key):
 		return self._tabs0[key]
 	
-	cpdef interpF(self, tau, xvec, keys):
-		cdef double rt, nx, ny, rx, ry, gamma, buff
+	cpdef interpF(self, double tau, xvec, keys):
+		cdef double rt, nx, ny, rx, ry, gamma, buff, vz
 		cdef int ix, iy, i, j
+		cdef str key
 		if self._mode == "static":
 			return [self._tabs0[key] for key in keys]
 		if self._mode == "dynamic":
-			if xvec[0] < self._xmin or xvec[0] > self._xmax \
-				or xvec[1] < self._ymin or xvec[1] > self._ymax:
-				return [0.0]*len(keys)
+			result = []
+			if xvec[1] < self._xmin or xvec[1] > self._xmax \
+				or xvec[2] < self._ymin or xvec[2] > self._ymax:
+				for i in range(len(keys)):
+					result[i] = 0.
+				return result
 			rt = (tau - self._tnow)/self._dt
-			nx = (xvec[0] - self._xmin)/self._dx
-			ny = (xvec[1] - self._ymin)/self._dy
+			nx = (xvec[1] - self._xmin)/self._dx
+			ny = (xvec[2] - self._ymin)/self._dy
 			ix = <int>floor(nx)
 			rx = nx - ix
 			iy = <int>floor(ny)
 			ry = ny - iy
-			result = []
-			vz = xvec[2]/xvec[3]
+			vz = xvec[3]/xvec[0]
 			gamma = 1.0/sqrt(1.0-vz*vz)
-			for key in keys:
+			for i, key in enumerate(keys):
 				if key == 'Vz':
 					result.append(vz)
 				else:
 					for i in range(2):
 						for j in range(2):
-							self.interpcube[0][i][j] = self._tabs0[key][ix+i, iy+i]
-							self.interpcube[1][i][j] = self._tabs1[key][ix+i, iy+i]
+							# Note that y comes first in Vishnew
+							self.interpcube[0][i][j] = self._tabs0[key][ix+i, iy+j]
+							self.interpcube[1][i][j] = self._tabs1[key][ix+i, iy+j]
 					buff = finterp(self.interpcube, rt, rx, ry)
 					#Note that this vx and vy are at mid-rapidity and need to be boosted to obtain the solution at forward and backward rapidity
-					if key == 'Vx' or keys == 'Vy':
+					if key == 'Vx' or key == 'Vy':
 						buff /= gamma
 					result.append(buff)
 			return result
