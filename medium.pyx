@@ -3,6 +3,7 @@ from medium cimport *
 from libc.math cimport *
 from libc.stdio cimport *
 from libc.stdlib cimport malloc, free
+from libcpp.vector cimport vector
 import h5py
 from cpython cimport array
 import array
@@ -22,7 +23,8 @@ cdef inline finterp(double *** c, double rx, double ry, double rz):
 	return result
 
 cdef class Medium:
-	cdef object _f, _step_keys, _tabs0, _tabs1, _mode
+	cdef object _f, _step_keys, _tabs0, _tabs1
+	cdef str _mode
 	cdef public size_t _Nx, _Ny, _step_key_index
 	cdef public double _dx, _dy, _xmin, _ymin, _xmax, _ymax, _tstart, _dt, _tnow
 	cdef double T_static
@@ -132,8 +134,10 @@ cdef class Medium:
 		return self._tabs0[key]
 	
 	cpdef interpF(self, tau, xvec, keys):
-		cdef double rt, nx, ny, rx, ry, gamma, buff
+		cdef double rt, nx, ny, rx, ry, gammaz, buff
 		cdef int ix, iy, i, j
+		cdef vector[double] result
+		result.clear()
 		if self._mode == "static":
 			return [self._tabs0[key] for key in keys]
 		if self._mode == "dynamic":
@@ -147,12 +151,11 @@ cdef class Medium:
 			rx = nx - ix
 			iy = <int>floor(ny)
 			ry = ny - iy
-			result = []
 			vz = xvec[2]/xvec[3]
-			gamma = 1.0/sqrt(1.0-vz*vz)
+			gammaz = 1.0/sqrt(1.0-vz*vz)
 			for key in keys:
 				if key == 'Vz':
-					result.append(vz)
+					result.push_back(vz)
 				else:
 					for i in range(2):
 						for j in range(2):
@@ -161,8 +164,8 @@ cdef class Medium:
 					buff = finterp(self.interpcube, rt, rx, ry)
 					#Note that this vx and vy are at mid-rapidity and need to be boosted to obtain the solution at forward and backward rapidity
 					if key == 'Vx' or keys == 'Vy':
-						buff /= gamma
-					result.append(buff)
+						buff /= 1.#gammaz
+					result.push_back(buff)
 			return result
 		
 
