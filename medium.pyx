@@ -1,16 +1,16 @@
 # cython: c_string_type=str, c_string_encoding=ascii
-from medium cimport *
 from libc.math cimport *
-from libc.stdio cimport *
 from libc.stdlib cimport malloc, free
 from libcpp.vector cimport vector
+from libcpp cimport bool
 import h5py
-from cpython cimport array
-import array
+import numpy as np
+cimport numpy as np
 
-cdef inline finterp(double *** c, double rx, double ry, double rz):
+cdef inline double finterp(double *** c, double rx, double ry, double rz):
 	cdef double result = 0.0
 	cdef double vx[2]
+	cdef size_t i, j, k
 	vx[0] = 1. - rx; vx[1] = rx
 	cdef double vy[2]
 	vy[0] = 1. - ry; vy[1] = ry
@@ -23,12 +23,13 @@ cdef inline finterp(double *** c, double rx, double ry, double rz):
 	return result
 
 cdef class Medium:
-	cdef object _f, _step_keys, _tabs0, _tabs1
+	cdef object _f, _step_keys, info_keys, static_property, _tabs
 	cdef str _mode
 	cdef public size_t _Nx, _Ny, _step_key_index
 	cdef public double _dx, _dy, _xmin, _ymin, _xmax, _ymax, _tstart, _dt, _tnow
 	cdef double T_static
-	cdef double *** interpcube
+	cdef double *** interpcube 
+	cdef bool status
 	
 	def __cinit__(self, medium_flags):
 		self._mode = medium_flags['type']
@@ -50,13 +51,14 @@ cdef class Medium:
 		elif self._mode == 'dynamic':
 			hydrofilename = medium_flags['hydrofile']
 			if hydrofilename == None:
-				raise ValueError("Please provide the hydro histroy file in dynamic meidum model.")
-			try:
+				raise ValueError("Need hydro history file")
+			else:
 				self._f = h5py.File(hydrofilename, 'r')
-			except IOError:
-				print "Open hydrofile %s failed."%hydrofilename
+
 			self._step_keys = list(self._f['Event'].keys())
 			self._step_key_index = 0
+			self.status = True
+			self.info_keys = self._f['Event'][self._step_keys[0]].keys() 
 			self._Nx = self._f['Event'].attrs['XH'] - self._f['Event'].attrs['XL'] + 1
 			self._Ny = self._f['Event'].attrs['YH'] - self._f['Event'].attrs['YL'] + 1
 			self._dx = self._f['Event'].attrs['DX']
@@ -68,105 +70,85 @@ cdef class Medium:
 			self._ymin = self._f['Event'].attrs['YL']*self._dy
 			self._ymax = self._f['Event'].attrs['YH']*self._dy
 			self._tnow = self._tstart - self._dt
-
+			
 			self.interpcube = <double ***> malloc(2*sizeof(double**))
 			for i in range(2):
 				self.interpcube[i] = <double **> malloc(2*sizeof(double*))
 				for j in range(2):
 					self.interpcube[i][j] = <double *> malloc(2*sizeof(double))
 		else:
-			raise ValueError("Medium mode %s not implemented."%self._mode)
+			raise ValueError("Medium mode not implemented.")
 	
 	cpdef init_tau(self):
 		return self._tstart
+	cpdef hydro_status(self):
+		return self.status
 	cpdef dtau(self):
 		return self._dt
 	cpdef boundary(self):
 		return self._xmin, self._xmax, self._ymin, self._ymax
 	
-	cpdef unpack_frame(self, step_index, staticT = None):
-		key = self._step_keys[step_index]
-		T  = self._f['Event'][key]['Temp'].value
-		Vx = self._f['Event'][key]['Vx'].value
-		Vy = self._f['Event'][key]['Vy'].value
-		e = self._f['Event'][key]['e'].value
-		p = self._f['Event'][key]['P'].value
-		pi00 = self._f['Event'][key]['Pi00'].value
-		pi01 = self._f['Event'][key]['Pi01'].value
-		pi02 = self._f['Event'][key]['Pi02'].value
-		pi03 = self._f['Event'][key]['Pi03'].value
-		pi11 = self._f['Event'][key]['Pi11'].value
-		pi12 = self._f['Event'][key]['Pi12'].value
-		pi13 = self._f['Event'][key]['Pi13'].value
-		pi22 = self._f['Event'][key]['Pi22'].value
-		pi23 = self._f['Event'][key]['Pi23'].value
-		pi33 = self._f['Event'][key]['Pi33'].value
-		return T, Vx, Vy, e, p, pi00, pi01, pi02, pi03, pi11, pi12, pi13, pi22, pi23, pi33
-			
+	cdef frame_inc_unpack(self):
+		self._tabs = {}
+		cdef vector[vector[vector[double]]] buff
+		buff.resize(2)
+		for key2 in self.info_keys:
+			for i in range(2):
+				key1 = self._step_keys[self._step_key_index+i]
+				buff[i] = self._f['Event'][key1][key2].value
+			self._tabs.update({key2:buff})
+		self._step_key_index += 1
+		if self._step_key_index == len(self._step_keys) - 1:
+			self.status = False
+
 	cpdef load_next(self, StaticPropertyDictionary=None):
-		status = True
 		if self._mode == "dynamic":
-			if self._step_key_index == 0:
-				T, Vx, Vy, e, p, pi00, pi01, pi02, pi03, pi11, pi12, pi13, pi22, pi23, pi33 \
-												 = self.unpack_frame(self._step_key_index)
-				self._tabs0 = {'Temp': T, 'Vx': Vx, 'Vy': Vy, 'e': e, 'p': p, 
-							   'pi00': pi00, 'pi01': pi01, 'pi02': pi02, 'pi03': pi03, 
-							   'pi11': pi11, 'pi12': pi12, 'pi13': pi13, 'pi22': pi22, 
-							   'pi23': pi23, 'pi33': pi33}
-			else:
-				self._tabs0 = self._tabs1
-			self._step_key_index += 1
-			T, Vx, Vy, e, p, pi00, pi01, pi02, pi03, pi11, pi12, pi13, pi22, pi23, pi33 \
-												 = self.unpack_frame(self._step_key_index)
-			self._tabs1 = {'Temp': T, 'Vx': Vx, 'Vy': Vy, 'e': e, 'p': p, 
-						   'pi00': pi00, 'pi01': pi01, 'pi02': pi02, 'pi03': pi03, 
-						   'pi11': pi11, 'pi12': pi12, 'pi13': pi13, 'pi22': pi22,								'pi23': pi23, 'pi33': pi33}
-			if self._step_key_index == len(self._step_keys) - 1:
-				status = False
-		if self._mode == 'static':
+			self.frame_inc_unpack()
+		elif self._mode == 'static':
 			if StaticPropertyDictionary == None:
 				raise ValueError("Need to provide a static property at this step")
-			self._tabs0 = StaticPropertyDictionary
+			else:			
+				self.static_property = StaticPropertyDictionary
+		else:
+			raise ValueError("Medium mode not implemented.")
 		self._tnow += self._dt
-		return status
 	
 	cpdef get_current_frame(self, key):
-		return self._tabs0[key]
+		pass
 	
-	cpdef interpF(self, tau, xvec, keys):
-		cdef double rt, nx, ny, rx, ry, gammaz, buff
-		cdef int ix, iy, i, j
-		cdef vector[double] result
-		result.clear()
+	cpdef interpF(self, double tau, xvec, keys):
+		cdef double rt, nx, ny, rx, ry, gamma, buff, vz
+		cdef int ix, iy, i, j, k
 		if self._mode == "static":
-			return [self._tabs0[key] for key in keys]
+			return [self.static_property[key] for key in keys]
 		if self._mode == "dynamic":
-			if xvec[0] < self._xmin or xvec[0] > self._xmax \
-				or xvec[1] < self._ymin or xvec[1] > self._ymax:
-				return [0.0]*len(keys)
-			rt = (tau - self._tnow)/self._dt
-			nx = (xvec[0] - self._xmin)/self._dx
-			ny = (xvec[1] - self._ymin)/self._dy
-			ix = <int>floor(nx)
-			rx = nx - ix
-			iy = <int>floor(ny)
-			ry = ny - iy
-			vz = xvec[2]/xvec[3]
-			gammaz = 1.0/sqrt(1.0-vz*vz)
-			for key in keys:
-				if key == 'Vz':
-					result.push_back(vz)
-				else:
-					for i in range(2):
-						for j in range(2):
-							self.interpcube[0][i][j] = self._tabs0[key][ix+i, iy+i]
-							self.interpcube[1][i][j] = self._tabs1[key][ix+i, iy+i]
-					buff = finterp(self.interpcube, rt, rx, ry)
-					#Note that this vx and vy are at mid-rapidity and need to be boosted to obtain the solution at forward and backward rapidity
-					if key == 'Vx' or keys == 'Vy':
-						buff /= 1.#gammaz
-					result.push_back(buff)
-			return result
+			if xvec[1] < self._xmin or xvec[1] > self._xmax \
+				or xvec[2] < self._ymin or xvec[2] > self._ymax:
+				return [0. for key in keys]
+			else:
+				result = []
+				rt = (tau - self._tnow)/self._dt
+				nx = (xvec[1] - self._xmin)/self._dx
+				ny = (xvec[2] - self._ymin)/self._dy
+				ix = <int>floor(nx)
+				rx = nx - ix
+				iy = <int>floor(ny)
+				ry = ny - iy
+				vz = xvec[3]/xvec[0]
+				for key in keys:
+					if key == 'Vz':
+						result.append(vz)
+					else:
+						for k in range(2):
+							for i in range(2):
+								for j in range(2):
+									self.interpcube[k][i][j] = self._tabs[key][k][ix+i][iy+j]
+						buff = finterp(self.interpcube, rt, rx, ry)
+						if key == 'Vx' or key == 'Vy':
+							gamma = 1.0/sqrt(1.0-vz*vz)
+							buff /= gamma
+						result.append(buff)
+				return result
 		
 
 
