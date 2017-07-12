@@ -9,8 +9,8 @@ cimport numpy as np
 
 cdef inline double finterp(double *** c, double rx, double ry, double rz):
 	cdef double result = 0.0
-	cdef double vx[2]
 	cdef size_t i, j, k
+	cdef double vx[2]
 	vx[0] = 1. - rx; vx[1] = rx
 	cdef double vy[2]
 	vy[0] = 1. - ry; vy[1] = ry
