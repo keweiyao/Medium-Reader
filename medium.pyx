@@ -114,7 +114,7 @@ cdef class Medium:
 		self._tnow += self._dt
 	
 	cpdef get_current_frame(self, key):
-		pass
+		return np.array(self._tabs[key][0])
 	
 	cpdef interpF(self, double tau, xvec, keys):
 		cdef double rt, nx, ny, rx, ry, gamma, buff, vz
