@@ -48,6 +48,7 @@ cdef class Medium:
 			self._ymin = 0.
 			self._ymax = 0.
 			self._tnow = self._tstart - self._dt
+			self.status = True
 		elif self._mode == 'dynamic':
 			hydrofilename = medium_flags['hydrofile']
 			if hydrofilename == None:
