@@ -28,12 +28,12 @@ cdef class Medium:
 	cdef public size_t _Nx, _Ny, _step_key_index
 	cdef public double _dx, _dy, _xmin, _ymin, _xmax, _ymax, _tstart, _dt, _tnow
 	cdef double T_static
-	cdef double *** interpcube 
+	cdef double *** interpcube
 	cdef bool status
-	
+
 	def __cinit__(self, medium_flags):
 		self._mode = medium_flags['type']
-		
+
 		if self._mode == 'static':
 			print "works in static meidum mode!"
 			print "Medium property can be specified step by step"
@@ -59,7 +59,7 @@ cdef class Medium:
 			self._step_keys = list(self._f['Event'].keys())
 			self._step_key_index = 0
 			self.status = True
-			self.info_keys = self._f['Event'][self._step_keys[0]].keys() 
+			self.info_keys = self._f['Event'][self._step_keys[0]].keys()
 			self._Nx = self._f['Event'].attrs['XH'] - self._f['Event'].attrs['XL'] + 1
 			self._Ny = self._f['Event'].attrs['YH'] - self._f['Event'].attrs['YL'] + 1
 			self._dx = self._f['Event'].attrs['DX']
@@ -71,7 +71,7 @@ cdef class Medium:
 			self._ymin = self._f['Event'].attrs['YL']*self._dy
 			self._ymax = self._f['Event'].attrs['YH']*self._dy
 			self._tnow = self._tstart - self._dt
-			
+
 			self.interpcube = <double ***> malloc(2*sizeof(double**))
 			for i in range(2):
 				self.interpcube[i] = <double **> malloc(2*sizeof(double*))
@@ -79,7 +79,7 @@ cdef class Medium:
 					self.interpcube[i][j] = <double *> malloc(2*sizeof(double))
 		else:
 			raise ValueError("Medium mode not implemented.")
-	
+
 	cpdef init_tau(self):
 		return self._tstart
 	cpdef hydro_status(self):
@@ -88,7 +88,7 @@ cdef class Medium:
 		return self._dt
 	cpdef boundary(self):
 		return self._xmin, self._xmax, self._ymin, self._ymax
-	
+
 	cdef frame_inc_unpack(self):
 		self._tabs = {}
 		cdef vector[vector[vector[double]]] buff
@@ -102,21 +102,21 @@ cdef class Medium:
 		if self._step_key_index == len(self._step_keys) - 1:
 			self.status = False
 
-	cpdef load_next(self, StaticPropertyDictionary=None):
+	cpdef load_next(self, StaticProperty=None):
 		if self._mode == "dynamic":
 			self.frame_inc_unpack()
 		elif self._mode == 'static':
-			if StaticPropertyDictionary == None:
-				raise ValueError("Need to provide a static property at this step")
-			else:			
-				self.static_property = StaticPropertyDictionary
+			if StaticProperty == None:
+				raise ValueError("Requires static meidum properties")
+			else:
+				self.static_property = StaticProperty
 		else:
 			raise ValueError("Medium mode not implemented.")
 		self._tnow += self._dt
-	
+
 	cpdef get_current_frame(self, key):
 		return np.array(self._tabs[key][0])
-	
+
 	cpdef interpF(self, double tau, xvec, keys):
 		cdef double rt, nx, ny, rx, ry, gamma, buff, vz
 		cdef int ix, iy, i, j, k
@@ -143,17 +143,11 @@ cdef class Medium:
 						for k in range(2):
 							for i in range(2):
 								for j in range(2):
-									self.interpcube[k][i][j] = self._tabs[key][k][ix+i][iy+j]
+									self.interpcube[k][i][j] = \
+										self._tabs[key][k][ix+i][iy+j]
 						buff = finterp(self.interpcube, rt, rx, ry)
 						if key == 'Vx' or key == 'Vy':
 							gamma = 1.0/sqrt(1.0-vz*vz)
 							buff /= gamma
 						result.append(buff)
 				return result
-		
-
-
-		
-		
-
-	
